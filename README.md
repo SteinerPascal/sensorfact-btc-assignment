@@ -1,35 +1,4 @@
 # Backend Engineer Technical Assignment
-## Introduction
-This assessment aims to assess the technical, analytical, and collaboration skills of
-the candidates for backend development positions in Sensorfact.
-
-In this assignment, we included a few of the technologies that we use in our
-existing products:
-
-- **GraphQL:**
-  Within Sensorfact we expose most of our data regarding measurements, machine
-  specific configuration and industry knowledge via a GraphQL API.
-- **TypeScript:**
-  A big part of our code is written in plain JavaScript. All
-  new projects use TypeScript, because we like the benefits that the type system
-  offers us during development, reviews, and testing.
-
-## Process & Guidelines
-
->- **We aim to timebox the assignment to 4 hours**, but feel free to dedicate as much time as you consider necessary
->- Make a conscious decision on what you want to focus on: it's ok if you
-   cannot complete the entire assignment.
->- Send us your solution before the technical interview: link to a repository.
-   You can, for example, fork this repository.
->- The assignment includes a description of a problem to solve, which could potentially lack
-   details. Feel free to make assumptions if needed, or contact us for clarification if you consider it necessary.
->- Take this assignment as an opportunity to show us your style: what you like to
-   work on, what you find important, how you address problems,etc.
->- Feel free to use any tool you'd like, that includes AI assistants as well.
-   We want you to work with the tools you know from your Day2Day work but expect us to dive deep with you into   the decision making behind adding / using certain logic.
->- **During the technical interview, we invite you to present your solution and discuss
-   it together as a team**: which decisions you took and why, questions about specific parts of the code,
-   libraries you have used, how easy and maintainable is the code,etc.
 
 ## Problem to solve (an imaginary one, of course ;))
 
@@ -55,31 +24,16 @@ be able to perform the following operations (already sorted by priority):
 Even if it is too soon in the product's lifetime to think about non-functional requirements, it will be beneficial to
 build it considering that we hope to scale the solution and avoid significant refactoring.
 
-## Assumptions
+## My thoughts on the task
+As I understand is the task to show the energy used for bitcoin transactions. Interestingly I don't think the endpoints I had to deliver will really be a solution for this. The problem is that the energy used for a transaction is quite small compared to the energy used for mining. So if you really want to see the impact and energy usage of the bitcoin blockchain then you should more compare the mining difficulty with the time it was solved and some estimation on how much energy it takes a GPU to find that solution.  
 
-**- You can use a simple model of the BTC network: the network is composed of blocks (each block identified by a unique `hash` value
-or a block index). Each block contains a set of transactions, each transaction also has a unique `hash` by which it can be identified.**
-- Every transaction takes up a variable amount of storage space inside the block, indicated by the `size` field (in bytes).
-- Assume that the energy cost per byte is 4,56 KwH.
-- You can use the public Blockchain API from blockchain.com to retrieve information
-  (https://www.blockchain.com/explorer/api/blockchain_api), for example:
-    - Latest block: https://blockchain.info/latestblock
-    - Information of blocks in a day: https://blockchain.info/blocks/$time_in_milliseconds?format=json
-    - Information of a single block: https://blockchain.info/rawblock/$block_hash
-    - Information of a single transaction: https://blockchain.info/rawtx/$tx_hash
-    - Information on transactions for a specific wallet address: https://blockchain.info/rawaddr/$bitcoin_address
-
-## Project code
-This project is comes with a pre-configured GraphQL server, hosted as a serverless
-function to get you started on the assignment. However, feel free to write your
-own implementation if you prefer.
-
----
+## Out of scope
+I left the (expert) feature out-of-scope because it had quite a few unknowns to me. Especially with the limitation of the free blockchain api key (5 requests/second limit & 1,000 API requests/day) it is difficult to not run quickly into a limit situation. or even worse chooking other requests by trying to fetch a whole wallet history. Especially because the task asked for "The platform will visualize the energy consumed by the network...". which means an adhoc wallet history fetching would need quite heavy pagination and could eat up the API limits quite rapidly. So there I would just ask for a bit more functional clarity. 
+Another interesting question is about how the energy should be calculated for each wallet. especially because a transaction can involve mutliple wallets. And what about if a wallet receives a transaction? Does this count for half the energy?
 
 # Solution
 
-A GraphQL API reporting Bitcoin energy consumption per block, per transaction and
-per day. Design decisions and trade-offs are written up in [`implementation.md`](./implementation.md).
+**Disclaimer**: The input for the AI and my personal design decisions trade-offs are written up in [`implementation.md`](./implementation.md).
 
 The Blockchain API is rate limited, so it is never called from the request path.
 A **worker** ingests settled blocks into Postgres; the **API** reads only from
