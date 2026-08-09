@@ -1,31 +1,9 @@
 # Backend Engineer Technical Assignment
 
-## Problem to solve (an imaginary one, of course ;))
-
-Sustainability is starting to take a key role in every product or solution launched into the market, and software
-systems are not an exception. It is not enough anymore to create and deploy in time complex and innovative
-systems which bring value to customers; they also need to be efficient. They need to
-be sustainable and consume the minimum amount of resources in their operations.
-
-As you probably have heard, one of the principal arguments against using Bitcoin is the amount of energy needed to keep
-the system running. To evaluate the sustainability of the blockchain network in which Bitcoin runs, we
-want to create a platform to monitor the energy spent on financial transactions using Bitcoin.
-
-The platform will visualize the energy consumed by the network and potentially calculate energy waste. Our frontend
-development team will need an API (preferably GraphQL) to connect to which will provide this information. The platform should
-be able to perform the following operations (already sorted by priority):
-
-- Provide the energy consumption per transaction for a specific block.
-- Provide the total energy consumption per day in the last `x` number of days.
-- Advanced Feature: Optimize the number of calls made to the Blockchain API to avoid asking for the
-  same information multiple times.
-- Expert Feature: Provide the total energy consumption of all transactions performed by a specific wallet address.
-
-Even if it is too soon in the product's lifetime to think about non-functional requirements, it will be beneficial to
-build it considering that we hope to scale the solution and avoid significant refactoring.
-
 ## My thoughts on the task
 As I understand is the task to show the energy used for bitcoin transactions. Interestingly I don't think the endpoints I had to deliver will really be a solution for this. The problem is that the energy used for a transaction is quite small compared to the energy used for mining. So if you really want to see the impact and energy usage of the bitcoin blockchain then you should more compare the mining difficulty with the time it was solved and some estimation on how much energy it takes a GPU to find that solution.  
+
+Furthermore, if sustainability is so important then one might be really considering whether a blockchain is the needed solution. It is just per design not that efficient because everything has to go through a whole networks instead of one centralized actor ;) 
 
 ## Out of scope
 I left the (expert) feature out-of-scope because it had quite a few unknowns to me. Especially with the limitation of the free blockchain api key (5 requests/second limit & 1,000 API requests/day) it is difficult to not run quickly into a limit situation. or even worse chooking other requests by trying to fetch a whole wallet history. Especially because the task asked for "The platform will visualize the energy consumed by the network...". which means an adhoc wallet history fetching would need quite heavy pagination and could eat up the API limits quite rapidly. So there I would just ask for a bit more functional clarity. 
