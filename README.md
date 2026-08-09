@@ -1,0 +1,206 @@
+# Backend Engineer Technical Assignment
+## Introduction
+This assessment aims to assess the technical, analytical, and collaboration skills of
+the candidates for backend development positions in Sensorfact.
+
+In this assignment, we included a few of the technologies that we use in our
+existing products:
+
+- **GraphQL:**
+  Within Sensorfact we expose most of our data regarding measurements, machine
+  specific configuration and industry knowledge via a GraphQL API.
+- **TypeScript:**
+  A big part of our code is written in plain JavaScript. All
+  new projects use TypeScript, because we like the benefits that the type system
+  offers us during development, reviews, and testing.
+
+## Process & Guidelines
+
+>- **We aim to timebox the assignment to 4 hours**, but feel free to dedicate as much time as you consider necessary
+>- Make a conscious decision on what you want to focus on: it's ok if you
+   cannot complete the entire assignment.
+>- Send us your solution before the technical interview: link to a repository.
+   You can, for example, fork this repository.
+>- The assignment includes a description of a problem to solve, which could potentially lack
+   details. Feel free to make assumptions if needed, or contact us for clarification if you consider it necessary.
+>- Take this assignment as an opportunity to show us your style: what you like to
+   work on, what you find important, how you address problems,etc.
+>- Feel free to use any tool you'd like, that includes AI assistants as well.
+   We want you to work with the tools you know from your Day2Day work but expect us to dive deep with you into   the decision making behind adding / using certain logic.
+>- **During the technical interview, we invite you to present your solution and discuss
+   it together as a team**: which decisions you took and why, questions about specific parts of the code,
+   libraries you have used, how easy and maintainable is the code,etc.
+
+## Problem to solve (an imaginary one, of course ;))
+
+Sustainability is starting to take a key role in every product or solution launched into the market, and software
+systems are not an exception. It is not enough anymore to create and deploy in time complex and innovative
+systems which bring value to customers; they also need to be efficient. They need to
+be sustainable and consume the minimum amount of resources in their operations.
+
+As you probably have heard, one of the principal arguments against using Bitcoin is the amount of energy needed to keep
+the system running. To evaluate the sustainability of the blockchain network in which Bitcoin runs, we
+want to create a platform to monitor the energy spent on financial transactions using Bitcoin.
+
+The platform will visualize the energy consumed by the network and potentially calculate energy waste. Our frontend
+development team will need an API (preferably GraphQL) to connect to which will provide this information. The platform should
+be able to perform the following operations (already sorted by priority):
+
+- Provide the energy consumption per transaction for a specific block.
+- Provide the total energy consumption per day in the last `x` number of days.
+- Advanced Feature: Optimize the number of calls made to the Blockchain API to avoid asking for the
+  same information multiple times.
+- Expert Feature: Provide the total energy consumption of all transactions performed by a specific wallet address.
+
+Even if it is too soon in the product's lifetime to think about non-functional requirements, it will be beneficial to
+build it considering that we hope to scale the solution and avoid significant refactoring.
+
+## Assumptions
+
+**- You can use a simple model of the BTC network: the network is composed of blocks (each block identified by a unique `hash` value
+or a block index). Each block contains a set of transactions, each transaction also has a unique `hash` by which it can be identified.**
+- Every transaction takes up a variable amount of storage space inside the block, indicated by the `size` field (in bytes).
+- Assume that the energy cost per byte is 4,56 KwH.
+- You can use the public Blockchain API from blockchain.com to retrieve information
+  (https://www.blockchain.com/explorer/api/blockchain_api), for example:
+    - Latest block: https://blockchain.info/latestblock
+    - Information of blocks in a day: https://blockchain.info/blocks/$time_in_milliseconds?format=json
+    - Information of a single block: https://blockchain.info/rawblock/$block_hash
+    - Information of a single transaction: https://blockchain.info/rawtx/$tx_hash
+    - Information on transactions for a specific wallet address: https://blockchain.info/rawaddr/$bitcoin_address
+
+## Project code
+This project is comes with a pre-configured GraphQL server, hosted as a serverless
+function to get you started on the assignment. However, feel free to write your
+own implementation if you prefer.
+
+---
+
+# Solution
+
+A GraphQL API reporting Bitcoin energy consumption per block, per transaction and
+per day. Design decisions and trade-offs are written up in [`implementation.md`](./implementation.md).
+
+The Blockchain API is rate limited, so it is never called from the request path.
+A **worker** ingests settled blocks into Postgres; the **API** reads only from
+Postgres. That is also the answer to the "optimize the number of calls"
+requirement: a block is fetched once, ever.
+
+One package, four entry points — `api`, `worker`, `retention` and a `backfill`
+script — over a shared core. Each handler is bundled separately by
+`serverless-esbuild`, so they deploy as independent Lambdas.
+
+## Requirements
+
+- **Node.js 20.x** — run `nvm use` in the root folder
+- **Yarn** (v1, classic)
+- **Docker** with Compose, for the local Postgres
+
+use `docker-compose`
+> wherever this README says `docker compose`. The `db:up` / `db:down` scripts
+> assume v2.
+
+## Running it
+
+```sh
+nvm use
+yarn
+```
+
+**1. Start Postgres.** Schema and seed data are applied automatically on first
+start — two UTC days of blocks, one transaction each — so the API returns
+something immediately, without waiting for an ingest.
+
+```sh
+yarn db:up          # docker compose up -d
+```
+
+**2. Start the API.**
+
+```sh
+yarn start
+```
+
+GraphiQL is at **http://localhost:4000/graphql** and serves the schema
+documentation.
+
+`serverless offline` also registers the two cron schedules, so the worker starts
+ingesting live blocks every 5 minutes on its own. To run either one immediately
+instead:
+
+```sh
+yarn worker:once        # one bounded ingest tick
+yarn retention:once     # one retention sweep
+```
+
+**3. Optionally backfill history.** The worker only walks forward from where it
+is; this fills the window backwards, a day at a time.
+
+```sh
+yarn backfill                       # RETENTION_DAYS of history
+yarn backfill --days 2              # just the last two days
+```
+
+> A full 30-day backfill is roughly 4,300 blocks. At the default one request per
+> second that is hours. so i would not recommend it. 
+
+Tear down with `yarn db:down` (this also drops the volume).
+
+## Try it
+
+```graphql
+# Energy per day, newest first
+{
+  dailyEnergy(lastDays: 3) {
+    day
+    totalEnergyKwh
+    blockCount
+    complete
+  }
+}
+
+# A specific block and its transactions.
+# Not in the database? It is fetched from blockchain.info and cached,
+# so the second call is served locally.
+{
+  block(height: 700000) {
+    hash
+    time
+    txCount
+    totalEnergyKwh
+    transactions(first: 5) {
+      totalCount
+      items {
+        hash
+        sizeBytes
+        energyKwh
+      }
+    }
+  }
+}
+```
+
+## Development
+
+```sh
+yarn test           # 43 unit tests
+yarn compile        # tsc --noEmit
+yarn lint           # eslint, incl. the module-boundary rule
+yarn format         # prettier
+```
+
+Logs are structured JSON on stdout; traces and metrics go to the console through
+OpenTelemetry (`ConsoleSpanExporter`), since there is no collector to ship to in a demo.
+
+## Configuration
+
+| Variable                      | Default                                   | Purpose                                            |
+| ----------------------------- | ----------------------------------------- | -------------------------------------------------- |
+| `DATABASE_URL`                | `postgres://btc:btc@localhost:5432/btcenergy` | Postgres connection                             |
+| `RETENTION_DAYS`              | `30`                                      | History window; also caps `lastDays`               |
+| `CONFIRMATION_LAG`            | `6`                                       | Blocks left uningested at the tip, for reorg safety |
+| `MAX_BLOCKS_PER_TICK`         | `25`                                      | Upper bound on work per worker invocation          |
+| `BLOCKCHAIN_REQUEST_DELAY_MS` | `1000`                                    | Minimum spacing between Blockchain API calls       |
+| `TX_PAGE_SIZE_MAX`            | `1000`                                    | Largest `first` accepted on `Block.transactions`   |
+| `DATABASE_POOL_MAX`           | `4`                                       | Pool size; kept small for concurrent invocations   |
+

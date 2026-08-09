@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: btc
+      POSTGRES_PASSWORD: btc
+      POSTGRES_DB: btcenergy
+    ports:
+      - '5432:5432'
+    volumes:
+      # Applied in filename order on first start: schema, then seed data.
+      - ./db/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - btc-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U btc -d btcenergy']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  btc-pgdata:

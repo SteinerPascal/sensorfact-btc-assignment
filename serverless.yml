@@ -1,0 +1,55 @@
+service: sf-assignment-pow
+frameworkVersion: '3'
+configValidationMode: error
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${opt:stage, 'dev'}
+  region: eu-west-1
+  lambdaHashingVersion: 20201221
+  memorySize: 256
+  logRetentionInDays: 14
+  timeout: 29
+  environment:
+    DATABASE_URL: ${env:DATABASE_URL, 'postgres://btc:btc@localhost:5432/btcenergy'}
+    RETENTION_DAYS: ${env:RETENTION_DAYS, '30'}
+    CONFIRMATION_LAG: ${env:CONFIRMATION_LAG, '6'}
+    MAX_BLOCKS_PER_TICK: ${env:MAX_BLOCKS_PER_TICK, '25'}
+    BLOCKCHAIN_REQUEST_DELAY_MS: ${env:BLOCKCHAIN_REQUEST_DELAY_MS, '1000'}
+    OTEL_SERVICE_NAME: btc-energy
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+custom:
+  esbuild:
+    packager: yarn
+    minify: false
+    sourcemap: false
+    target: node20
+    watch:
+      pattern: ['src/**/*.ts']
+
+functions:
+  # Each handler is bundled separately by serverless-esbuild, so the three
+  # modules deploy as independent functions from this single package.
+  graphql:
+    handler: src/api/handler.handler
+    events:
+      - httpApi: '*'
+
+  worker:
+    handler: src/worker/handler.handler
+    # Work per invocation is bounded by MAX_BLOCKS_PER_TICK and progress is kept
+    # in the database, so a tick that runs out of time resumes on the next one.
+    timeout: 300
+    events:
+      - schedule: rate(5 minutes)
+
+  retention:
+    handler: src/retention/handler.handler
+    timeout: 300
+    events:
+      - schedule: cron(30 3 * * ? *)
